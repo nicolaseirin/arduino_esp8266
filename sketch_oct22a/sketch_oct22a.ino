@@ -7,17 +7,17 @@
 
 //MQTT CONNECTION
 #define MQTT_SERVER "192.168.1.117"
-const char* ssid = "YOURWIFI";
-const char* password = "PASSWORD";
+const char* ssid = NULL;
+const char* password = NULL;
 
 char* Topic = "inTopic";
-WiFiClient wifiClient;
+PubSubClient client;
 
-#define DOUT_FOOD_CELL   A1
-#define CLK_FOOD_CELL    A0
+#define DOUT_FOOD_CELL   'A1'
+#define CLK_FOOD_CELL    'A0'
 
-#define DOUT_WATER_CELL  A2
-#define CLK_WATER_CELL   A3
+#define DOUT_WATER_CELL  'A2'
+#define CLK_WATER_CELL   'A3'
 
 #define ZERO_WEIGHT 600//300
 #define WATER_WEIGHT_LIMIT 20000
@@ -80,10 +80,10 @@ void loop() {
   Serial.println(waterCell.get_value(AVERAGE_OF));
   delay(10);
 
-  handleWater();
+  //handleWater();
   delay(10);
 
-  handleFood();
+  //handleFood();
   delay(10);
 
   sendData();
@@ -96,7 +96,6 @@ void reconnectMQTT() {
   }
 
   client.loop();
-
   delay(20);
 }
 
@@ -130,12 +129,22 @@ void reconnect() {
       }
       else
       {
-
         Serial.println("\tFailed.");
         abort();
       }
     }
   }
+}
+
+String macToStr(const uint8_t* mac)
+{
+  String result;
+  for (int i = 0; i < 6; ++i) {
+    result += String(mac[i], 16);
+    if (i < 5)
+      result += ':';
+  }
+  return result;
 }
 
 void initElectroValve() {
@@ -160,7 +169,8 @@ void initWaterCell() {
   waterCell.tare(25);  //El peso actual es considerado Tara.
 }
 
-void handleWater() {
+/*
+  void handleWater() {
   long long waterCellWeight = waterCell.get_value(AVERAGE_OF);
   if (waterCellWeight <= ZERO_WEIGHT) {
 
@@ -173,9 +183,9 @@ void handleWater() {
     digitalWrite(ELECTROVALVE, LOW);
     Serial.print("Apagar bomba de agua.");
   }
-}
+  }
 
-void handleFood() {
+  void handleFood() {
   long long foodCellWeight = foodCell.get_value(AVERAGE_OF);
   if (foodCell.get_value(AVERAGE_OF) <= ZERO_WEIGHT) {
     stepper.runToNewPosition(MOTOR_THROW_POSITION);
@@ -184,76 +194,66 @@ void handleFood() {
   if (foodCell.get_value(AVERAGE_OF) > FOOD_WEIGHT_LIMIT) {
     stepper.runToNewPosition(0);
   }
-}
+  }
+*/
 
 void callback(char* topic, byte * payload, unsigned int length) {
 
   String Str = topic;
 
-  if (payload[0] == 'F') {
+  if (payload[0] == 'f') {
     tryToDispenseFood();
   }
 
-  if (payload[1] == 'W') {
+  if (payload[1] == 'w') {
     tryToDispenseWater();
   }
 }
 
 void tryToDispenseFood() {
 
-  while (true) {
+  long long foodCellWeight = getFoodLevel();
+  if (foodCellWeight <  FOOD_WEIGHT_LIMIT) {
+    
+    stepper.runToNewPosition(MOTOR_THROW_POSITION);
+    delay(15000);
+    client.publish(CONFIRMATION_FOOD_OUT_TOPIC, foodCellWeight + "");
 
-    long long foodCellWeight = foodCell.get_value(AVERAGE_OF);
-    if (foodCell.get_value(AVERAGE_OF) <  FOOD_WEIGHT_LIMIT) {
-
-      client.publish(CONFIRMATION_FOOD_OUT_TOPIC, "Tirando Comida...");
-
-      stepper.runToNewPosition(MOTOR_THROW_POSITION);
+     while (true) {
+      foodCellWeight = getFoodLevel();
+      if (foodCellWeight >= FOOD_WEIGHT_LIMIT) {
+         stepper.runToNewPosition(0);
+        break;
+      }
     }
-    else
-    {
-      client.publish(CONFIRMATION_FOOD_OUT_TOPIC, "No es posible dispensar comida, el contenedor se encuentra al limite de su capacidad.");
-      break;
-    }
-
-    if (foodCell.get_value(AVERAGE_OF) > FOOD_WEIGHT_LIMIT) {
-      stepper.runToNewPosition(0);
-
-      client.publish(CONFIRMATION_FOOD_OUT_TOPIC, "Tirando Comida...");
-      break;
-    }
+  }
+  else
+  {
+    client.publish(CONFIRMATION_FOOD_OUT_TOPIC, "-1");
   }
 }
 
+
 void tryToDispenseWater() {
 
-  while (true) {
+  long long waterCellWeight = getWaterLevel();
+  if (waterCellWeight < WATER_WEIGHT_LIMIT) {
 
-    long long waterCellWeight = waterCell.get_value(AVERAGE_OF);
+    digitalWrite(ELECTROVALVE, HIGH);
+    delay(15000);
+    client.publish(CONFIRMATION_WATER_OUT_TOPIC, waterCellWeight + "");
 
-    if (waterCellWeight <= WATER_WEIGHT_LIMIT) {
-
-      digitalWrite(ELECTROVALVE, HIGH);
-
-      client.publish(CONFIRMATION_WATER_OUT_TOPIC, "Encender bomba de agua.");
-
-      Serial.print("Encender bomba de agua.");
+    while (true) {
+      waterCellWeight = getWaterLevel();
+      if (waterCellWeight >= WATER_WEIGHT_LIMIT) {
+        digitalWrite(ELECTROVALVE, LOW);
+        break;
+      }
     }
-    else
-    {
-      client.publish(CONFIRMATION_WATER_OUT_TOPIC, "Contenedor de agua al limite de su capacidad, no es posible dispensar agua.");
-      break;
-    }
-
-    if (waterCellWeight > WATER_WEIGHT_LIMIT) {
-
-      digitalWrite(ELECTROVALVE, LOW);
-
-      client.publish(CONFIRMATION_WATER_OUT_TOPIC, "Apagar bomba de agua.");
-
-      Serial.print("Apagar bomba de agua.");
-      break;
-    }
+  }
+  else
+  {
+    client.publish(CONFIRMATION_WATER_OUT_TOPIC, "-1");
   }
 }
 
