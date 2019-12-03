@@ -2,16 +2,6 @@
 
 #include <HX711.h>  // Library needed to communicate with HX711 https://github.com/bogde/HX711
 #include <AccelStepper.h>
-#include <PubSubClient.h>
-#include <ESP8266WiFi.h>
-
-//MQTT CONNECTION
-#define MQTT_SERVER "192.168.1.117"
-const char* ssid = NULL;
-const char* password = NULL;
-
-char* Topic = "inTopic";
-PubSubClient client;
 
 #define DOUT_FOOD_CELL   'A1'
 #define CLK_FOOD_CELL    'A0'
@@ -39,14 +29,7 @@ PubSubClient client;
 unsigned long TIMESTAMP_FIRST = 0;
 unsigned long TIMESTAMP_LAST = TIME_LIMIT + 1;
 
-#define WATER_OUT_TOPIC "waterOutTopic"
-#define FOOD_OUT_TOPIC "foodOutTopic"
 
-#define WATER_IN_TOPIC "waterInTopic"
-#define FOOD_IN_TOPIC "foodInTopic"
-
-#define CONFIRMATION_WATER_OUT_TOPIC "waterConfirmationOutTopic"
-#define CONFIRMATION_FOOD_OUT_TOPIC "foodConfirmationOutTopic"
 
 AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIRECTION_PIN);
 
@@ -63,14 +46,10 @@ void setup() {
   initFoodCell();
   initWaterCell();
 
-  WiFi.begin(ssid, password);
-
   delay(2000);
 }
 
 void loop() {
-
-  reconnectMQTT();
 
   Serial.print("Valor de lectura food cell:  ");
   Serial.println(foodCell.get_value(AVERAGE_OF));
@@ -87,64 +66,6 @@ void loop() {
   delay(10);
 
   sendData();
-}
-
-void reconnectMQTT() {
-
-  if (!client.connected() && WiFi.status() == 3) {
-    reconnect();
-  }
-
-  client.loop();
-  delay(20);
-}
-
-void reconnect() {
-
-  if (WiFi.status() != WL_CONNECTED) {
-
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-    }
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-
-    while (!client.connected()) {
-
-      String clientName;
-      clientName += "esp8266-";
-      uint8_t mac[6];
-      WiFi.macAddress(mac);
-      clientName += macToStr(mac);
-
-      if (client.connect((char*) clientName.c_str())) {
-
-        Serial.print("\tMTQQ Connected");
-
-        client.subscribe(WATER_IN_TOPIC);
-        client.subscribe(FOOD_IN_TOPIC);
-
-        client.setCallback(callback);
-      }
-      else
-      {
-        Serial.println("\tFailed.");
-        abort();
-      }
-    }
-  }
-}
-
-String macToStr(const uint8_t* mac)
-{
-  String result;
-  for (int i = 0; i < 6; ++i) {
-    result += String(mac[i], 16);
-    if (i < 5)
-      result += ':';
-  }
-  return result;
 }
 
 void initElectroValve() {
@@ -168,6 +89,7 @@ void initWaterCell() {
   waterCell.set_scale(); //La escala por defecto es 1
   waterCell.tare(25);  //El peso actual es considerado Tara.
 }
+
 
 /*
   void handleWater() {
@@ -200,6 +122,7 @@ void initWaterCell() {
 void callback(char* topic, byte * payload, unsigned int length) {
 
   String Str = topic;
+
 
   if (payload[0] == 'f') {
     tryToDispenseFood();
