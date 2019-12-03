@@ -80,6 +80,7 @@ void listenForArduinoMessages() {
   const char* amount = jsonMessage["amount"];
 
   client.publish(topic, amount);
+  delay(500);
 }
 
 void tellArduinoToDispense(char what) {
