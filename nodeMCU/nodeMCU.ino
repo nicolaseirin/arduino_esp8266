@@ -5,28 +5,30 @@
 
 String WATER_OUT_TOPIC = "waterOutTopic";
 String FOOD_OUT_TOPIC =  "foodOutTopic";
-#define WATER_IN_TOPIC "waterInTopic"
-#define FOOD_IN_TOPIC "foodInTopic"
+const char* WATER_IN_TOPIC = "waterInTopic";
+const char* FOOD_IN_TOPIC  = "foodInTopic";
 String CONFIRMATION_WATER_OUT_TOPIC = "waterConfirmationOutTopic";
 String CONFIRMATION_FOOD_OUT_TOPIC = "foodConfirmationOutTopic";
+
 #define FOOD 'f'
 #define WATER 'w'
 
 #define RX D6
 #define TX D5
 
-#define MQTT_SERVER "127.0.0.1"
+#define MQTT_SERVER "192.168.1.7"
 #define MQTT_SERVER_PORT 1883
-const char* ssid = NULL;
-const char* password = NULL;
+const char* ssid = "neirin-HP-Notebook";
+const char* password = "";
 
 PubSubClient client;
 SoftwareSerial arduinoSerialCommunicationChannel(RX, TX);
 const int capacity = JSON_OBJECT_SIZE(3);
-StaticJsonDocument<capacity> jsonMessage;
+StaticJsonDocument<200> jsonMessage;
 
 void setup() {
-  WiFi.begin(ssid, password);
+  Serial.begin(9600);
+  setupWifi();
   client.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
   client.setCallback(callback);
   arduinoSerialCommunicationChannel.begin(9600);
@@ -36,6 +38,15 @@ void loop() {
   reconnectMQTT();
 
   listenForArduinoMessages();
+}
+
+void setupWifi() {
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    
+    Serial.println("...");
+  };
+  Serial.println("Connected to WiFi");
 }
 
 void reconnectMQTT() {
@@ -48,6 +59,7 @@ void reconnectMQTT() {
 
 void reconnect() {
   while (!client.connected()) {
+    Serial.println("trying to connect");
     if (client.connect("esp8266-")) {
       Serial.print("\tMTQQ Connected");
 
@@ -70,23 +82,24 @@ void callback(char* topic, byte * payload, unsigned int length) {
 }
 
 void listenForArduinoMessages() {
+
   DeserializationError error = deserializeJson(jsonMessage, arduinoSerialCommunicationChannel);
 
-  if(error) {
+  if (error) {
     return;
   }
 
-  const char* topic = jsonMessage["topic"];
-  const char* amount = jsonMessage["amount"];
+  String topic = jsonMessage["topic"];
+  int amount = jsonMessage["amount"];
 
-  client.publish(topic, amount);
-  delay(500);
+  client.publish(topic.c_str(), amount + "");
+  delay(1000);
 }
 
 void tellArduinoToDispense(char what) {
   jsonMessage["dispense"] = what;
 
-  while(arduinoSerialCommunicationChannel.available() <= 0);
+  while (arduinoSerialCommunicationChannel.available() <= 0);
   serializeJson(jsonMessage, arduinoSerialCommunicationChannel);
-  delay(500);
+  delay(1000);
 }

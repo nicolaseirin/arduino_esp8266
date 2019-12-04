@@ -51,7 +51,7 @@ SoftwareSerial nodeMCUSerialCommunicationChannel(RX, TX);
 HX711 foodCell;  // Init of library
 HX711 waterCell;
 const int capacity = JSON_OBJECT_SIZE(3);
-StaticJsonDocument<capacity> jsonMessage;
+StaticJsonDocument<200> jsonMessage;
 
 void setup() {
   Serial.begin(9600);
@@ -67,8 +67,8 @@ void setup() {
 }
 
 void loop() {
-  listenToNodeMCU();
   
+  //listenToNodeMCU();
   sendData();
 }
 
@@ -78,7 +78,7 @@ void initElectroValve() {
 }
 
 void initMotor() {
-  stepper.setMaxSpeed(MOTOR_MAX_SPEED );
+  stepper.setMaxSpeed(MOTOR_MAX_SPEED);
   stepper.setAcceleration(MOTOR_ACCELERATION);
 }
 
@@ -95,15 +95,17 @@ void initWaterCell() {
 }
 
 void sendData() {
+  
   unsigned long ms = millis();
   TIMESTAMP_LAST = ms;
 
-  if (TIMESTAMP_LAST - TIMESTAMP_FIRST > TIME_LIMIT) {
+  //if (TIMESTAMP_LAST - TIMESTAMP_FIRST > TIME_LIMIT) {
+
     sendJsonMessageToNodeMCU(WATER_OUT_TOPIC, getWaterLevel());
     sendJsonMessageToNodeMCU(FOOD_OUT_TOPIC, getFoodLevel());
     
     TIMESTAMP_FIRST = ms;
-  }
+  //}
 }
 
 long long getWaterLevel() {
@@ -118,10 +120,10 @@ void sendJsonMessageToNodeMCU(const char* topic, int amount){
     jsonMessage["topic"] = topic;
     jsonMessage["amount"] = amount;
 
-    while(nodeMCUSerialCommunicationChannel.available() <= 0);
+    while(nodeMCUSerialCommunicationChannel.available() <= 0); 
 
     serializeJson(jsonMessage, nodeMCUSerialCommunicationChannel);
-    delay(500);
+    delay(1000);
 }
 
 void listenToNodeMCU() {
