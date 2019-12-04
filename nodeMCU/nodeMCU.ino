@@ -23,8 +23,8 @@ const char* password = "";
 
 PubSubClient client;
 SoftwareSerial arduinoSerialCommunicationChannel(RX, TX);
-const int capacity = JSON_OBJECT_SIZE(3);
-StaticJsonDocument<200> jsonMessage;
+const int capacity = 200;
+StaticJsonDocument<capacity> jsonMessage;
 
 void setup() {
   Serial.begin(9600);
