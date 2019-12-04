@@ -50,8 +50,8 @@ AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIRECTION_PIN);
 SoftwareSerial nodeMCUSerialCommunicationChannel(RX, TX);
 HX711 foodCell;  // Init of library
 HX711 waterCell;
-const int capacity = JSON_OBJECT_SIZE(3);
-StaticJsonDocument<200> jsonMessage;
+const int capacity = capacity;
+StaticJsonDocument<capacity> jsonMessage;
 
 void setup() {
   Serial.begin(9600);
